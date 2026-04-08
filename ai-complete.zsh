@@ -44,14 +44,21 @@ _ai_clamp_scroll() {
 _ai_show() {
     _ai_clamp_scroll
 
+    # Clear old list before redisplay (cursor is at end of LBUFFER)
+    if (( _AI_LIST_LINES > 0 )); then
+        printf '\e[B\e[J\e[A'
+    fi
+
     LBUFFER="${_AI_SUGGESTIONS[$(( _AI_INDEX + 1 ))]}"
     RBUFFER=""
 
     # Let ZLE refresh the command line FIRST (positions cursor correctly)
     zle redisplay
 
-    # Save cursor position, then clear below and draw list
-    printf '\e[s\e[B\r\e[J'
+    # DEC save cursor (separate slot from CSI s/u, avoids ZLE conflicts)
+    printf '\e7'
+    # Move down one line, go to col 0, clear to end of screen
+    printf '\e[B\r\e[J'
 
     local n=${#_AI_SUGGESTIONS}
     local max=${_AI_MAX_ITEMS}
@@ -96,8 +103,8 @@ _ai_show() {
 
     _AI_LIST_LINES=$(( e - s + 2 ))  # items + top + bottom
 
-    # Restore cursor to command line
-    printf '\e[u'
+    # DEC restore cursor to command line
+    printf '\e8'
 }
 
 # ── Tab: open menu / cycle forward ───────────────────────────
