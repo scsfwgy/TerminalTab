@@ -53,6 +53,8 @@ export AI_COMPLETE_MAX_ITEMS=5
 source /path/to/TerminalTab/ai-complete.zsh
 ```
 
+举例
+
 ```deepseek 举例
 export AI_COMPLETE_API_KEY="sk-ebfbeed****854700044d"
 export AI_COMPLETE_API_URL="https://api.deepseek.com/v1/chat/completions"
