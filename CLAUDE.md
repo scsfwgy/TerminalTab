@@ -4,16 +4,16 @@
 
 ## 项目概述
 
-TerminalTab 是一个 zsh 插件，按 Tab 键调用大模型 API 提供命令建议。支持纠正拼写错误、补全部分输入、或为已有命令推荐有用的参数组合。
+TerminalTab 是一个 zsh 插件，按 Shift+Tab 键调用大模型 API 提供命令建议。支持纠正拼写错误、补全部分输入、或为已有命令推荐有用的参数组合。
 
 仅两个文件，除 `curl` + `jq` 外零依赖：
 - `ai-suggest` — Bash 脚本，调用 LLM API，返回换行分隔的完整命令建议
-- `ai-complete.zsh` — ZLE（Zsh 行编辑器）插件，拦截 Tab/上/下/回车 键
+- `ai-complete.zsh` — ZLE（Zsh 行编辑器）插件，拦截 Shift+Tab/上/下/回车 键
 
 ## 架构
 
 ```
-用户按 Tab
+用户按 Shift+Tab
   → ai-complete.zsh (_ai_tab widget)
     → ai-suggest（通过 &! 后台运行）
     → 通过 POSTDISPLAY 在输入内容后显示单行 loading 动画

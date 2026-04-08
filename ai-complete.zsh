@@ -1,6 +1,6 @@
 # AI-powered Tab completion for zsh
 #
-# Tab      → show suggestions / cycle forward
+# Shift+Tab → fetch / refresh suggestions
 # Up/Down  → navigate suggestions
 # Enter    → accept suggestion (press Enter again to execute)
 # Ctrl+C   → cancel menu, restore original input
@@ -71,7 +71,7 @@ _ai_reset_menu() {
 
 # ── Detect whether buffer changed since menu opened ───────────
 _ai_buffer_changed() {
-    [[ "$LBUFFER" != "${_AI_SUGGESTIONS[$(( _AI_INDEX + 1 ))]}" || "$RBUFFER" != "$_AI_RIGHT" ]]
+    [[ "$LBUFFER" != "$_AI_ORIGINAL" || "$RBUFFER" != "$_AI_RIGHT" ]]
 }
 
 # ── Render bordered vertical list ────────────────────────────
@@ -79,9 +79,6 @@ _ai_show() {
     (( ${#_AI_SUGGESTIONS} > 0 )) || return
 
     _ai_clamp_scroll
-
-    LBUFFER="${_AI_SUGGESTIONS[$(( _AI_INDEX + 1 ))]}"
-    RBUFFER="$_AI_RIGHT"
 
     # Let ZLE refresh the command line FIRST (positions cursor correctly)
     zle redisplay
@@ -140,22 +137,15 @@ _ai_show() {
     printf '\e8'
 }
 
-# ── Tab: open menu / cycle forward ───────────────────────────
-_ai_tab() {
+# ── Shift+Tab: fetch / refresh suggestions ───────────────────
+_ai_trigger() {
     local input="${LBUFFER}"
 
     [[ -z "${input// /}" ]] && { zle expand-or-complete; return }
 
-    # Menu already open → cycle only if buffer still matches current selection
     if (( _AI_ACTIVE )); then
-        if _ai_buffer_changed; then
-            _ai_clear_menu
-            _ai_reset_menu
-        else
-            _AI_INDEX=$(( (_AI_INDEX + 1) % ${#_AI_SUGGESTIONS} ))
-            _ai_show
-            return
-        fi
+        _ai_clear_menu
+        _ai_reset_menu
     fi
 
     _AI_ORIGINAL="$input"
@@ -240,14 +230,14 @@ _ai_cancel() {
 }
 
 # ── Register widgets ──────────────────────────────────────────
-zle -N ai-tab    _ai_tab
+zle -N ai-trigger _ai_trigger
 zle -N ai-down   _ai_down
 zle -N ai-up     _ai_up
 zle -N ai-enter  _ai_enter
 zle -N ai-cancel _ai_cancel
 
 # ── Key bindings ──────────────────────────────────────────────
-bindkey '^I'   ai-tab       # Tab
+bindkey '^[[Z' ai-trigger  # Shift+Tab
 bindkey '\e[A' ai-up        # Up arrow
 bindkey '\e[B' ai-down      # Down arrow
 bindkey '\eOA' ai-up        # Up arrow (alt)
@@ -257,4 +247,4 @@ bindkey '^J'   ai-enter     # Enter (LF)
 bindkey '^C'   ai-cancel    # Ctrl+C to cancel
 
 # ── Init ──────────────────────────────────────────────────────
-echo "AI Tab completion loaded. Tab → suggest, ↑↓ → navigate, Enter → accept."
+echo "AI command completion loaded. Shift+Tab → suggest, ↑↓ → navigate, Enter → accept."
