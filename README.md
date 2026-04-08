@@ -18,6 +18,19 @@ TerminalTab 是一个轻量的 zsh 插件。
 - 建议结果会自动清洗：去重、去编号、去项目符号、去代码块残留
 - 仅依赖 `curl` 和 `jq`
 
+## 原理
+
+TerminalTab 的工作流程很简单：
+
+1. 你在命令行里输入内容后按 `Shift+Tab`
+2. `ai-complete.zsh` 读取当前输入，并在后台调用 `ai-suggest`
+3. `ai-suggest` 请求大模型，让它返回“每行一条”的完整命令建议
+4. 返回结果会在本地再次清洗，过滤掉空行、编号、项目符号、代码块残留和重复项
+5. 清洗后的结果交给 zsh 插件渲染成可选择的建议列表
+6. 你可以用 `↑ / ↓` 切换，用 `Enter` 把选中的命令填回当前输入框
+
+也就是说：这个项目不是直接替你执行命令，而是把大模型输出整理成更适合直接使用的命令候选，再交给你选择。
+
 ## 文件说明
 
 - `ai-complete.zsh`：zsh 插件，负责键位绑定、菜单渲染、状态管理
@@ -38,7 +51,7 @@ brew install jq curl
 1. 克隆仓库：
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/scsfwgy/TerminalTab
 cd TerminalTab
 ```
 
@@ -67,48 +80,6 @@ source ~/TerminalTab/ai-complete.zsh
 
 ```bash
 source ~/.zshrc
-```
-
-## 配置项
-
-### `AI_COMPLETE_API_KEY`
-
-必填。你的 API Key。
-
-### `AI_COMPLETE_MODEL`
-
-可选。默认值：
-
-```bash
-gpt-4o-mini
-```
-
-### `AI_COMPLETE_API_URL`
-
-可选。默认值：
-
-```bash
-https://api.openai.com/v1/chat/completions
-```
-
-支持兼容 OpenAI Chat Completions 的接口。
-
-### `AI_COMPLETE_MAX_ITEMS`
-
-可选。控制菜单最多显示多少条可见项，默认值：
-
-```bash
-5
-```
-
-如果返回结果更多，可以继续通过 `↑ / ↓` 滚动选择。
-
-### `AI_COMPLETE_TIMEOUT`
-
-可选。AI 请求超时时间，单位秒，默认值：
-
-```bash
-5
 ```
 
 ## 使用方式
