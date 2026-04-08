@@ -33,6 +33,7 @@ _AI_SUGGESTIONS=()
 _AI_INDEX=0
 _AI_ACTIVE=0
 _AI_ORIGINAL=""
+_AI_RIGHT=""
 _AI_SCROLL=0
 _AI_LIST_LINES=0
 
@@ -57,6 +58,7 @@ _ai_reset_menu() {
     _AI_INDEX=0
     _AI_SCROLL=0
     _AI_LIST_LINES=0
+    _AI_RIGHT=""
 }
 
 # ── Render bordered vertical list ────────────────────────────
@@ -66,7 +68,7 @@ _ai_show() {
     _ai_clamp_scroll
 
     LBUFFER="${_AI_SUGGESTIONS[$(( _AI_INDEX + 1 ))]}"
-    RBUFFER=""
+    RBUFFER="$_AI_RIGHT"
 
     # Let ZLE refresh the command line FIRST (positions cursor correctly)
     zle redisplay
@@ -139,6 +141,7 @@ _ai_tab() {
     fi
 
     _AI_ORIGINAL="$input"
+    _AI_RIGHT="$RBUFFER"
     _AI_INDEX=0
     _AI_SCROLL=0
 
@@ -197,7 +200,7 @@ _ai_enter() {
     if (( _AI_ACTIVE && ${#_AI_SUGGESTIONS} > 0 )); then
         _ai_clear_menu
         LBUFFER="${_AI_SUGGESTIONS[$(( _AI_INDEX + 1 ))]}"
-        RBUFFER=""
+        RBUFFER="$_AI_RIGHT"
         _ai_reset_menu
         zle redisplay
         return
@@ -210,7 +213,7 @@ _ai_cancel() {
     if (( _AI_ACTIVE )); then
         _ai_clear_menu
         LBUFFER="$_AI_ORIGINAL"
-        RBUFFER=""
+        RBUFFER="$_AI_RIGHT"
         _ai_reset_menu
         zle redisplay
     else
