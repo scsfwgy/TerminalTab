@@ -47,7 +47,15 @@ _ai_clamp_scroll() {
 # ── Clear rendered menu ───────────────────────────────────────
 _ai_clear_menu() {
     (( _AI_LIST_LINES > 0 )) || return
-    printf '\e[B\e[J\e[A'
+
+    local i
+    printf '\e7'
+    printf '\e[B\r'
+    for (( i = 0; i < _AI_LIST_LINES; i++ )); do
+        printf '\r\e[2K'
+        (( i + 1 < _AI_LIST_LINES )) && printf '\e[B'
+    done
+    printf '\e8'
     _AI_LIST_LINES=0
 }
 

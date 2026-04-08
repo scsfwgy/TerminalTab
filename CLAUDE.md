@@ -48,6 +48,7 @@ source ~/path/to/TerminalTab/ai-complete.zsh
 - 渲染列表的正确顺序：先 `zle redisplay`（让 ZLE 处理命令行），再清理旧列表，然后 `\e7`（DEC 保存光标），接着 `printf` 列表内容，最后 `\e8`（DEC 恢复光标）。使用 DEC 保存/恢复而非 CSI s/u，避免与 ZLE 内部冲突。
 - 列表清理逻辑必须统一，避免 `_ai_show` / Enter / Ctrl+C 各自使用不同的 ANSI 序列，否则容易出现残影、错位和状态不同步。
 - 导航（上/下）时旧列表必须先清掉再重绘；关闭菜单时也必须走同一套清理路径。
+- 如果已经记录了菜单高度（如 `_AI_LIST_LINES`），清理时应按实际行数逐行清除，而不是直接 `\e[J` 清到屏幕底部，避免误清终端其它内容。
 
 ### 2. Loading 动画与列表显示要分层处理
 - 单行 loading 动画适合用 `POSTDISPLAY`，这样可以直接显示在用户当前输入内容后面，比如 `ls ⠧`。
