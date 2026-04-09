@@ -241,6 +241,8 @@ _ai_show_answer() {
     # Print answer like normal command output — terminal handles scrolling
     zle -I
     printf '\n%s\n' "$text"
+    LBUFFER=""
+    RBUFFER=""
     zle reset-prompt
 }
 
