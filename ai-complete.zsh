@@ -316,12 +316,12 @@ _ai_ask() {
         sleep 0.1
     done
 
-    local answer; answer=$(<"$tmpf" 2>/dev/null)
+    local answer; answer=$(cat "$tmpf" 2>/dev/null)
     rm -f "$tmpf"
     POSTDISPLAY=""
     zle redisplay
 
-    [[ -n "$answer" ]] && _ai_show_answer "$answer"
+    _ai_show_answer "${answer:-no response}"
 }
 
 # ── Down arrow: next suggestion ──────────────────────────────
