@@ -27,7 +27,7 @@ _ai_setup() {
 }
 
 _ai_loading_frames() {
-    _AI_LOADING_FRAMES=('|' '/' '-' '\\')
+    _AI_LOADING_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
     _AI_LOADING_INTERVAL=0.2
 }
 
