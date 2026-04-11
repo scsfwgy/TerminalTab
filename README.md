@@ -66,25 +66,41 @@ cd TerminalTab
 
 2. 在 `~/.zshrc` 中加入配置：
 
-```bash
+简洁版配置
+```
+export AI_COMPLETE_API_KEY="sk-..."
+export AI_COMPLETE_MODEL="gpt-4o-mini"
+export AI_COMPLETE_API_URL="https://api.openai.com/v1/chat/completions"
+
+source /path/to/TerminalTab/ai-complete.zsh
+```
+
+完整版bash
+```
+export AI_COMPLETE_API_TYPE="openai"
 export AI_COMPLETE_API_KEY="sk-..."
 export AI_COMPLETE_MODEL="gpt-4o-mini"
 export AI_COMPLETE_API_URL="https://api.openai.com/v1/chat/completions"
 export AI_COMPLETE_MAX_ITEMS=5
+export AI_COMPLETE_TRIGGER_BINDKEY='^L'
+export AI_COMPLETE_ASK_BINDKEY='^G'
 
 source /path/to/TerminalTab/ai-complete.zsh
 ```
+
 
 其中以下 3 个变量是必填项：
 - `AI_COMPLETE_API_URL`
 - `AI_COMPLETE_MODEL`
 - `AI_COMPLETE_API_KEY`
 
-`AI_COMPLETE_API_TYPE` 控制协议格式，默认 `openai`，使用 Claude 时设为 `claude`。
+可选快捷键配置：
+- `AI_COMPLETE_TRIGGER_BINDKEY`：触发建议列表，默认 `'^L'`（即 `Ctrl+L`）
+- `AI_COMPLETE_ASK_BINDKEY`：向 AI 提问，默认 `'^G'`（即 `Ctrl+G`）
 
-提示词已拆分到独立文件中：
-- `prompts/suggest.prompt`
-- `prompts/ask.prompt`
+快捷键值必须使用 zsh `bindkey` 原生语法，例如 `'^T'`、`'^Y'`。如果用户显式设置了非法值（例如空值、裸 `\e`、与方向键 / Enter / Ctrl+C 冲突、或两个快捷键重复），插件会直接报错并停止加载，而不会回退到默认快捷键。
+
+`AI_COMPLETE_API_TYPE` 控制协议格式，默认 `openai`，使用 Claude 时设为 `claude`。
 
 举例
 
@@ -113,13 +129,14 @@ source ~/.zshrc
 
 ## 使用方式
 
-输入命令后按：
-
+默认快捷键：
 - `Ctrl+L`：请求 / 刷新 AI 建议（l = list）
 - `Ctrl+G`：向 AI 提问（g = generate）
 - `↑ / ↓`：切换高亮项
 - `Enter`：接受当前高亮建议
 - `Ctrl+C`：取消菜单并恢复输入
+
+如果你设置了 `AI_COMPLETE_TRIGGER_BINDKEY` 或 `AI_COMPLETE_ASK_BINDKEY`，则以你配置的绑定为准；上面的 `Ctrl+L` / `Ctrl+G` 只是默认值。
 
 示例：
 
@@ -150,44 +167,7 @@ touch -c filename
 touch -a filename
 ```
 
-## 运行测试
-
-项目内置了几个简单的回归测试。
-
-直接运行：
-
-```bash
-./test.sh
-```
-
-当前会执行：
-- navigation buffer regression
-- ai config validation regression
-- ai-suggest cleanup regression
-- ai ask mode regression
-- ctrl+l binding regression
-- trigger rename regression
-
-## 适配其它 API
-
-支持两种协议，通过 `AI_COMPLETE_API_TYPE` 切换：
-
-- `openai`（默认）：兼容 OpenAI、DeepSeek、通义千问等 Chat Completions 风格接口
-- `claude`：Anthropic Claude 官方 API
-
-无论哪种协议，都需要显式配置 URL、模型和 API key：
-
-```bash
-export AI_COMPLETE_API_URL="https://your-api.example.com/v1/chat/completions"
-export AI_COMPLETE_MODEL="your-model"
-export AI_COMPLETE_API_KEY="your-key"
-```
-
 ## 注意事项
 
 - 本插件依赖 zsh 的 ZLE 机制，不适用于 bash
 - `Tab` 和 `Shift+Tab` 均未被占用，仍可保留给原生补全或其它插件
-
-## License
-
-MIT

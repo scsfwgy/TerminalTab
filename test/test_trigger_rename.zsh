@@ -15,8 +15,8 @@ content=$(<"$PLUGIN_FILE")
     exit 1
 }
 
-[[ "$content" == *"bindkey '^L'"*ai-trigger* ]] || {
-    print -u2 "expected Ctrl+L binding to target ai-trigger"
+[[ "$content" == *'bindkey "$_AI_TRIGGER_BINDKEY" ai-trigger'* ]] || {
+    print -u2 "expected trigger binding to target ai-trigger"
     exit 1
 }
 

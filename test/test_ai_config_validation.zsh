@@ -2,6 +2,7 @@
 set -euo pipefail
 
 PROJECT_DIR=${0:A:h:h}
+PLUGIN_FILE="$PROJECT_DIR/ai-complete.zsh"
 
 missing_all_output=$(env -i PATH="$PATH" bash "$PROJECT_DIR/ai-suggest.sh" "ls")
 [[ "$missing_all_output" == *"AI Complete is not configured. Missing required environment variables:"* ]] || {
@@ -39,6 +40,47 @@ missing_model_output=$(env -i PATH="$PATH" AI_COMPLETE_API_URL="https://example.
 [[ "$missing_model_output" != *"- AI_COMPLETE_API_KEY"* ]] || {
     print -u2 "did not expect API key to be reported missing"
     print -u2 "$missing_model_output"
+    exit 1
+}
+
+empty_trigger_error=$(env -i PATH="$PATH" zsh -c "source '$PLUGIN_FILE'" 2>&1 >/dev/null || true)
+[[ "$empty_trigger_error" != *"AI_COMPLETE_TRIGGER_BINDKEY cannot be empty"* ]] || {
+    print -u2 "expected empty trigger test to require explicit env override"
+    exit 1
+}
+
+invalid_trigger_output=$(env -i PATH="$PATH" AI_COMPLETE_TRIGGER_BINDKEY='' zsh -c "source '$PLUGIN_FILE'" 2>&1 >/dev/null || true)
+[[ "$invalid_trigger_output" == *"AI_COMPLETE_TRIGGER_BINDKEY cannot be empty"* ]] || {
+    print -u2 "expected empty trigger bindkey to fail"
+    print -u2 "$invalid_trigger_output"
+    exit 1
+}
+
+escape_trigger_output=$(env -i PATH="$PATH" AI_COMPLETE_TRIGGER_BINDKEY=$'\e' zsh -c "source '$PLUGIN_FILE'" 2>&1 >/dev/null || true)
+[[ "$escape_trigger_output" == *"AI_COMPLETE_TRIGGER_BINDKEY does not support bare Escape"* ]] || {
+    print -u2 "expected bare escape bindkey to fail"
+    print -u2 "$escape_trigger_output"
+    exit 1
+}
+
+reserved_ask_output=$(env -i PATH="$PATH" AI_COMPLETE_ASK_BINDKEY='^C' zsh -c "source '$PLUGIN_FILE'" 2>&1 >/dev/null || true)
+[[ "$reserved_ask_output" == *"AI_COMPLETE_ASK_BINDKEY cannot use reserved key sequence ^C."* ]] || {
+    print -u2 "expected reserved ask bindkey to fail"
+    print -u2 "$reserved_ask_output"
+    exit 1
+}
+
+duplicate_bindings_output=$(env -i PATH="$PATH" AI_COMPLETE_TRIGGER_BINDKEY='^T' AI_COMPLETE_ASK_BINDKEY='^T' zsh -c "source '$PLUGIN_FILE'" 2>&1 >/dev/null || true)
+[[ "$duplicate_bindings_output" == *"AI_COMPLETE_TRIGGER_BINDKEY and AI_COMPLETE_ASK_BINDKEY must be different."* ]] || {
+    print -u2 "expected duplicate custom bindkeys to fail"
+    print -u2 "$duplicate_bindings_output"
+    exit 1
+}
+
+valid_custom_output=$(env -i PATH="$PATH" AI_COMPLETE_TRIGGER_BINDKEY='^T' AI_COMPLETE_ASK_BINDKEY='^Y' zsh -c "source '$PLUGIN_FILE'" 2>&1)
+[[ "$valid_custom_output" == *"Ctrl+T → list suggestions, Ctrl+Y → ask AI"* ]] || {
+    print -u2 "expected valid custom bindkeys to appear in startup text"
+    print -u2 "$valid_custom_output"
     exit 1
 }
 

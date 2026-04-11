@@ -10,13 +10,18 @@ content=$(<"$PLUGIN_FILE")
     exit 1
 }
 
-[[ "$content" == *"bindkey '^G'   ai-ask"* ]] || {
-    print -u2 "expected Ctrl+G to be bound to ai-ask"
+[[ "$content" == *"_AI_ASK_BINDKEY_DEFAULT='^G'"* ]] || {
+    print -u2 "expected default ask bindkey to remain Ctrl+G"
     exit 1
 }
 
-[[ "$content" == *"Ctrl+G → ask AI"* ]] || {
-    print -u2 "expected startup text to mention Ctrl+G ask shortcut"
+[[ "$content" == *'bindkey "$_AI_ASK_BINDKEY" ai-ask'* ]] || {
+    print -u2 "expected ask binding to use configurable bindkey variable"
+    exit 1
+}
+
+[[ "$content" == *'${_AI_ASK_BINDKEY_LABEL} → ask AI'* ]] || {
+    print -u2 "expected startup text to mention ask shortcut label"
     exit 1
 }
 

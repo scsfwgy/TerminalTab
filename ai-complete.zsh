@@ -1,16 +1,19 @@
 # AI-powered Tab completion for zsh
 #
-# Ctrl+L → fetch / refresh suggestions (l = list)
-# Ctrl+G → ask AI (g = generate)
-# Up/Down  → navigate suggestions
-# Enter    → accept suggestion (press Enter again to execute)
-# Ctrl+C   → cancel menu, restore original input
+# Default shortcuts:
+#   Ctrl+L → fetch / refresh suggestions (l = list)
+#   Ctrl+G → ask AI (g = generate)
+#   Up/Down → navigate suggestions
+#   Enter   → accept suggestion (press Enter again to execute)
+#   Ctrl+C  → cancel menu, restore original input
 #
 # Config:
-#   export AI_COMPLETE_API_KEY="sk-..."          (required)
-#   export AI_COMPLETE_MAX_ITEMS=5               (optional, default 5)
-#   export AI_COMPLETE_MODEL="gpt-4o-mini"       (optional)
-#   export AI_COMPLETE_API_TYPE="openai"         (optional: openai or claude)
+#   export AI_COMPLETE_API_KEY="sk-..."                  (required)
+#   export AI_COMPLETE_MAX_ITEMS=5                       (optional, default 5)
+#   export AI_COMPLETE_MODEL="gpt-4o-mini"             (optional)
+#   export AI_COMPLETE_API_TYPE="openai"               (optional: openai or claude)
+#   export AI_COMPLETE_TRIGGER_BINDKEY='^L'             (optional, default Ctrl+L)
+#   export AI_COMPLETE_ASK_BINDKEY='^G'                 (optional, default Ctrl+G)
 #
 # Dependencies: jq, curl
 
@@ -29,6 +32,10 @@ _ai_setup() {
 _ai_loading_frames() {
     _AI_LOADING_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
     _AI_LOADING_INTERVAL=0.2
+}
+
+_ai_setup_render_mode() {
+    _AI_RENDER_MODE="multiline"
 }
 
 _ai_menu_lines() {
@@ -104,6 +111,62 @@ _AI_MAX_ITEMS=${AI_COMPLETE_MAX_ITEMS:-5}
 if ! [[ "$_AI_MAX_ITEMS" == <-> ]] || (( _AI_MAX_ITEMS <= 0 )); then
     _AI_MAX_ITEMS=5
 fi
+
+_AI_TRIGGER_BINDKEY_DEFAULT='^L'
+_AI_ASK_BINDKEY_DEFAULT='^G'
+_AI_RESERVED_BINDKEYS=($'\e' '\e[A' '\e[B' '\eOA' '\eOB' '^M' '^J' '^C')
+
+_ai_fail_config() {
+    print -u2 -- "$1"
+    return 1 2>/dev/null || exit 1
+}
+
+_ai_bindkey_label() {
+    local key="$1"
+    if [[ "$key" == '^?' ]]; then
+        print -- 'Ctrl+?'
+    elif [[ "$key" == '^'[[:alpha:]] ]]; then
+        print -- "Ctrl+${key[2]}"
+    else
+        print -- "$key"
+    fi
+}
+
+_ai_validate_custom_bindkey() {
+    local env_name="$1"
+    local key="$2"
+    local reserved
+
+    [[ -n "$key" ]] || _ai_fail_config "$env_name cannot be empty. Use zsh bindkey syntax like '^L'."
+    [[ "$key" != $'\e' ]] || _ai_fail_config "$env_name does not support bare Escape (\\e) because it conflicts with arrow-key sequences."
+
+    for reserved in "${_AI_RESERVED_BINDKEYS[@]}"; do
+        [[ "$key" != "$reserved" ]] || _ai_fail_config "$env_name cannot use reserved key sequence $key."
+    done
+}
+
+_ai_setup_bindkeys() {
+    if [[ -n "${AI_COMPLETE_TRIGGER_BINDKEY+x}" ]]; then
+        _AI_TRIGGER_BINDKEY=${AI_COMPLETE_TRIGGER_BINDKEY}
+        _ai_validate_custom_bindkey "AI_COMPLETE_TRIGGER_BINDKEY" "$_AI_TRIGGER_BINDKEY" || return 1
+    else
+        _AI_TRIGGER_BINDKEY=$_AI_TRIGGER_BINDKEY_DEFAULT
+    fi
+
+    if [[ -n "${AI_COMPLETE_ASK_BINDKEY+x}" ]]; then
+        _AI_ASK_BINDKEY=${AI_COMPLETE_ASK_BINDKEY}
+        _ai_validate_custom_bindkey "AI_COMPLETE_ASK_BINDKEY" "$_AI_ASK_BINDKEY" || return 1
+    else
+        _AI_ASK_BINDKEY=$_AI_ASK_BINDKEY_DEFAULT
+    fi
+
+    [[ "$_AI_TRIGGER_BINDKEY" != "$_AI_ASK_BINDKEY" ]] || _ai_fail_config "AI_COMPLETE_TRIGGER_BINDKEY and AI_COMPLETE_ASK_BINDKEY must be different."
+
+    _AI_TRIGGER_BINDKEY_LABEL=$(_ai_bindkey_label "$_AI_TRIGGER_BINDKEY")
+    _AI_ASK_BINDKEY_LABEL=$(_ai_bindkey_label "$_AI_ASK_BINDKEY")
+}
+
+_ai_setup_bindkeys || return 1
 
 # ── State ─────────────────────────────────────────────────────
 _AI_SUGGESTIONS=()
@@ -418,8 +481,8 @@ zle -N ai-enter  _ai_enter
 zle -N ai-cancel _ai_cancel
 
 # ── Key bindings ──────────────────────────────────────────────
-bindkey '^L'   ai-trigger  # Ctrl+L (l = list)
-bindkey '^G'   ai-ask      # Ctrl+G (g = generate)
+bindkey "$_AI_TRIGGER_BINDKEY" ai-trigger  # configurable trigger binding
+bindkey "$_AI_ASK_BINDKEY" ai-ask          # configurable ask binding
 bindkey '\e[A' ai-up        # Up arrow
 bindkey '\e[B' ai-down      # Down arrow
 bindkey '\eOA' ai-up        # Up arrow (alt)
@@ -429,4 +492,4 @@ bindkey '^J'   ai-enter     # Enter (LF)
 bindkey '^C'   ai-cancel    # Ctrl+C to cancel
 
 # ── Init ──────────────────────────────────────────────────────
-echo "AI command completion loaded. Ctrl+L → list suggestions, Ctrl+G → ask AI, ↑↓ → navigate, Enter → accept."
+echo "AI command completion loaded. ${_AI_TRIGGER_BINDKEY_LABEL} → list suggestions, ${_AI_ASK_BINDKEY_LABEL} → ask AI, ↑↓ → navigate, Enter → accept."
