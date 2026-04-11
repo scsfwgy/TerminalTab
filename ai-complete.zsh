@@ -26,8 +26,9 @@ _ai_setup() {
     fi
 }
 
-_ai_setup_render_mode() {
-    _AI_RENDER_MODE="multiline"
+_ai_loading_frames() {
+    _AI_LOADING_FRAMES=('|' '/' '-' '\\')
+    _AI_LOADING_INTERVAL=0.2
 }
 
 _ai_menu_lines() {
@@ -96,6 +97,7 @@ _ai_get_cursor_row() {
 
 _ai_setup
 _ai_setup_render_mode
+_ai_loading_frames
 
 # ── Config ────────────────────────────────────────────────────
 _AI_MAX_ITEMS=${AI_COMPLETE_MAX_ITEMS:-5}
@@ -114,6 +116,7 @@ _AI_LIST_LINES=0
 _AI_CURSOR_ROW=0
 _AI_LAST_LINES=0
 _AI_RENDER_MODE="${_AI_RENDER_MODE:-multiline}"
+_AI_LAST_OUTPUT=""
 
 # ── Clamp scroll window ──────────────────────────────────────
 _ai_clamp_scroll() {
@@ -273,6 +276,33 @@ _ai_missing_config_message() {
     return 0
 }
 
+_ai_run_with_spinner() {
+    local tmpf; tmpf=$(mktemp)
+    { "$@" > "$tmpf" } 2>/dev/null &!
+    local bg_pid=$!
+
+    local frames=(${_AI_LOADING_FRAMES[@]})
+    local frame_count=${#frames}
+    local si=0
+
+    while kill -0 "$bg_pid" 2>/dev/null; do
+        local next_postdisplay=" ${frames[$(( si % frame_count + 1 ))]}"
+        if [[ "$POSTDISPLAY" != "$next_postdisplay" ]]; then
+            POSTDISPLAY="$next_postdisplay"
+            zle redisplay
+        fi
+        si=$(( si + 1 ))
+        sleep "${_AI_LOADING_INTERVAL}"
+    done
+
+    _AI_LAST_OUTPUT=$(cat "$tmpf" 2>/dev/null)
+    rm -f "$tmpf"
+    if [[ -n "$POSTDISPLAY" ]]; then
+        POSTDISPLAY=""
+        zle redisplay
+    fi
+}
+
 # ── Ctrl+L: fetch / refresh suggestions ───────────────────
 _ai_trigger() {
     local input="${LBUFFER}"
@@ -297,26 +327,8 @@ _ai_trigger() {
     _AI_INDEX=0
     _AI_SCROLL=0
 
-    # Run ai-suggest.sh in background
-    local tmpf; tmpf=$(mktemp)
-    { ai-suggest.sh "$input" > "$tmpf" } 2>/dev/null &!
-    local bg_pid=$!
-
-    # Inline spinner after current input
-    local spin=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠧' '⠇' '⠏')
-    local si=0
-    while kill -0 "$bg_pid" 2>/dev/null; do
-        LBUFFER="$input"
-        POSTDISPLAY=" ${spin[$(( si % 9 + 1 ))]}"
-        zle redisplay
-        si=$(( si + 1 ))
-        sleep 0.1
-    done
-
-    local raw; raw=$(cat "$tmpf" 2>/dev/null)
-    rm -f "$tmpf"
-    POSTDISPLAY=""
-    zle redisplay
+    _ai_run_with_spinner ai-suggest.sh "$input"
+    local raw="$_AI_LAST_OUTPUT"
 
     [[ -z "$raw" ]] && { _ai_reset_menu; zle expand-or-complete; return }
 
@@ -345,24 +357,8 @@ _ai_ask() {
         _ai_reset_menu
     fi
 
-    local tmpf; tmpf=$(mktemp)
-    { ai-suggest.sh --ask "$input" > "$tmpf" } 2>/dev/null &!
-    local bg_pid=$!
-
-    local spin=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠧' '⠇' '⠏')
-    local si=0
-    while kill -0 "$bg_pid" 2>/dev/null; do
-        LBUFFER="$input"
-        POSTDISPLAY=" ${spin[$(( si % 9 + 1 ))]}"
-        zle redisplay
-        si=$(( si + 1 ))
-        sleep 0.1
-    done
-
-    local answer; answer=$(cat "$tmpf" 2>/dev/null)
-    rm -f "$tmpf"
-    POSTDISPLAY=""
-    zle redisplay
+    _ai_run_with_spinner ai-suggest.sh --ask "$input"
+    local answer="$_AI_LAST_OUTPUT"
 
     _ai_show_answer "${answer:-no response}"
 }
