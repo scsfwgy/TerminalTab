@@ -17,8 +17,12 @@
 # ── Setup ─────────────────────────────────────────────────────
 _ai_setup() {
     local script_dir="${0:A:h}"
+    local suggest_script="$script_dir/ai-suggest.sh"
     if [[ ":$PATH:" != *":$script_dir:"* ]]; then
         export PATH="$script_dir:$PATH"
+    fi
+    if [[ ! -x "$suggest_script" && -f "$suggest_script" ]]; then
+        chmod +x "$suggest_script" 2>/dev/null || true
     fi
 }
 
@@ -250,11 +254,38 @@ _ai_show_answer() {
     zle reset-prompt
 }
 
+_ai_missing_config_message() {
+    local missing=()
+
+    [[ -n "${AI_COMPLETE_API_URL:-}" ]] || missing+=("AI_COMPLETE_API_URL")
+    [[ -n "${AI_COMPLETE_MODEL:-}" ]] || missing+=("AI_COMPLETE_MODEL")
+    [[ -n "${AI_COMPLETE_API_KEY:-}" ]] || missing+=("AI_COMPLETE_API_KEY")
+
+    (( ${#missing[@]} == 0 )) && return 1
+
+    local message="AI Complete not configured"
+    local name
+    for name in "${missing[@]}"; do
+        message+="\n- $name"
+    done
+
+    printf '%s' "$message"
+    return 0
+}
+
 # ── Ctrl+L: fetch / refresh suggestions ───────────────────
 _ai_trigger() {
     local input="${LBUFFER}"
+    local config_message
 
     [[ -z "${input// /}" ]] && { zle expand-or-complete; return }
+
+    if config_message=$(_ai_missing_config_message); then
+        _ai_clear_menu
+        _ai_reset_menu
+        zle -M "$config_message"
+        return
+    fi
 
     if (( _AI_ACTIVE )); then
         _ai_clear_menu
@@ -266,9 +297,9 @@ _ai_trigger() {
     _AI_INDEX=0
     _AI_SCROLL=0
 
-    # Run ai-suggest in background
+    # Run ai-suggest.sh in background
     local tmpf; tmpf=$(mktemp)
-    { ai-suggest "$input" > "$tmpf" } 2>/dev/null &!
+    { ai-suggest.sh "$input" > "$tmpf" } 2>/dev/null &!
     local bg_pid=$!
 
     # Inline spinner after current input
@@ -299,7 +330,15 @@ _ai_trigger() {
 # ── Ctrl+G: ask AI and render answer (g = generate) ──────────
 _ai_ask() {
     local input="${LBUFFER}"
+    local config_message
     [[ -z "${input// /}" ]] && return
+
+    if config_message=$(_ai_missing_config_message); then
+        _ai_clear_menu
+        _ai_reset_menu
+        zle -M "$config_message"
+        return
+    fi
 
     if (( _AI_ACTIVE )); then
         _ai_clear_menu
@@ -307,7 +346,7 @@ _ai_ask() {
     fi
 
     local tmpf; tmpf=$(mktemp)
-    { ai-suggest --ask "$input" > "$tmpf" } 2>/dev/null &!
+    { ai-suggest.sh --ask "$input" > "$tmpf" } 2>/dev/null &!
     local bg_pid=$!
 
     local spin=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠧' '⠇' '⠏')

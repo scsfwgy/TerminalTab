@@ -1,6 +1,6 @@
 #!/bin/bash
 # AI-powered command suggestion engine
-# Usage: ai-suggest [--ask] "user typed text"
+# Usage: ai-suggest.sh [--ask] "user typed text"
 # Output:
 #   suggest mode → newline-separated COMPLETE command suggestions
 #   ask mode     → plain assistant response
@@ -19,19 +19,79 @@ if [[ -z "$INPUT" ]]; then
     exit 0
 fi
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROMPT_DIR="${AI_COMPLETE_PROMPT_DIR:-$SCRIPT_DIR/prompts}"
+
 # ── Config (set in .zshrc / .bashrc) ──────────────────────────
-# AI_COMPLETE_API_TYPE  - API protocol: "openai" or "claude" (default: openai)
-# AI_COMPLETE_API_URL   - API endpoint (default: OpenAI)
-# AI_COMPLETE_API_KEY   - Your API key
-# AI_COMPLETE_MODEL     - Model name (default: gpt-4o-mini)
-# AI_COMPLETE_TIMEOUT   - Timeout in seconds (default: 15)
+# AI_COMPLETE_API_TYPE    - API protocol: "openai" or "claude" (default: openai)
+# AI_COMPLETE_API_URL     - API endpoint (required)
+# AI_COMPLETE_API_KEY     - Your API key (required)
+# AI_COMPLETE_MODEL       - Model name (required)
+# AI_COMPLETE_TIMEOUT     - Timeout in seconds (default: 15)
+# AI_COMPLETE_PROMPT_DIR  - Prompt directory (optional, default: prompts next to ai-suggest.sh)
 # ──────────────────────────────────────────────────────────────
 
 API_TYPE="${AI_COMPLETE_API_TYPE:-openai}"
-API_URL="${AI_COMPLETE_API_URL:-https://api.openai.com/v1/chat/completions}"
-API_KEY="${AI_COMPLETE_API_KEY:?Set AI_COMPLETE_API_KEY in your shell config}"
-MODEL="${AI_COMPLETE_MODEL:-gpt-4o-mini}"
+API_URL="${AI_COMPLETE_API_URL:-}"
+API_KEY="${AI_COMPLETE_API_KEY:-}"
+MODEL="${AI_COMPLETE_MODEL:-}"
 TIMEOUT="${AI_COMPLETE_TIMEOUT:-15}"
+
+print_config_error() {
+    local missing=()
+
+    [[ -n "$API_URL" ]] || missing+=("AI_COMPLETE_API_URL")
+    [[ -n "$MODEL" ]] || missing+=("AI_COMPLETE_MODEL")
+    [[ -n "$API_KEY" ]] || missing+=("AI_COMPLETE_API_KEY")
+
+    (( ${#missing[@]} == 0 )) && return 0
+
+    printf 'AI Complete is not configured. Missing required environment variables:\n'
+    local name
+    for name in "${missing[@]}"; do
+        printf -- '- %s\n' "$name"
+    done
+
+    printf '\nAdd the missing exports to your shell config, for example:\n\n'
+    printf '%s\n' '# OpenAI-compatible API'
+    printf '%s\n' 'export AI_COMPLETE_API_URL="https://api.openai.com/v1/chat/completions"'
+    printf '%s\n' 'export AI_COMPLETE_MODEL="gpt-4o-mini"'
+    printf '%s\n' 'export AI_COMPLETE_API_KEY="sk-..."'
+    printf '\n'
+    printf '%s\n' '# Claude API'
+    printf '%s\n' 'export AI_COMPLETE_API_TYPE="claude"'
+    printf '%s\n' 'export AI_COMPLETE_API_URL="https://api.anthropic.com/v1/messages"'
+    printf '%s\n' 'export AI_COMPLETE_MODEL="claude-sonnet-4-5"'
+    printf '%s\n' 'export AI_COMPLETE_API_KEY="sk-ant-..."'
+    exit 0
+}
+
+load_prompt() {
+    local prompt_name prompt_path prompt_content sanitized_input
+
+    if [[ "$MODE" == "ask" ]]; then
+        prompt_name="ask.prompt"
+    else
+        prompt_name="suggest.prompt"
+    fi
+
+    prompt_path="$PROMPT_DIR/$prompt_name"
+    if [[ ! -f "$prompt_path" ]]; then
+        printf 'Prompt file not found: %s\n' "$prompt_path"
+        return 1
+    fi
+
+    prompt_content=$(<"$prompt_path") || {
+        printf 'Failed to read prompt file: %s\n' "$prompt_path"
+        return 1
+    }
+
+    sanitized_input=${INPUT//\{\{INPUT\}\}/}
+    PROMPT=${prompt_content//\{\{INPUT\}\}/$sanitized_input}
+}
+
+print_config_error
+load_prompt || exit 0
 
 extract_api_error() {
     local response="$1"
@@ -65,70 +125,6 @@ extract_response_content() {
     [[ "$content" == "null" ]] && content=""
     printf '%s' "$content"
 }
-
-if [[ "$MODE" == "ask" ]]; then
-    PROMPT="You are a terminal assistant.
-The user entered: \"$INPUT\"
-
-Rules:
-- Reply in concise plain text suitable for reading in a terminal
-- The input may be a command, an error message, or a natural-language question
-- Do not use markdown code fences
-- Keep helpful structure when useful
-- Do not number the response unless needed
-
-Now reply to: \"$INPUT\""
-else
-    PROMPT="You are a terminal command suggestion engine.
-The user typed: \"$INPUT\"
-
-Rules:
-- Return COMPLETE commands, one per line — ready to copy-paste and run
-- If the input is a typo, return the corrected full command
-- If the input is a valid command, return useful variations with flags/options
-- Maximum 8 suggestions
-- Do NOT include any explanation, numbering, or markdown — just raw commands
-
-Examples:
-Input: \"toush\" → Output:
-touch filename
-touch -c filename
-touch -a filename
-touch -m filename
-
-Input: \"mkdrs\" → Output:
-mkdir dirname
-mkdir -p path/to/dir
-mkdir -m 755 dirname
-mkdir -v dirname
-
-Input: \"ls\" → Output:
-ls -la
-ls -lh
-ls -laR
-ls -lS
-ls -lt
-ls -l --block-size=M
-
-Input: \"git\" → Output:
-git status
-git add .
-git commit -m \"message\"
-git push
-git pull
-git log --oneline
-git diff
-git stash
-
-Input: \"docker\" → Output:
-docker ps -a
-docker images
-docker compose up -d
-docker logs -f container_name
-docker exec -it container_name bash
-
-Now suggest for: \"$INPUT\""
-fi
 
 response_file=$(mktemp)
 trap 'rm -f "$response_file"' EXIT

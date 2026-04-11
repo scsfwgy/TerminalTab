@@ -4,6 +4,7 @@ set -euo pipefail
 PROJECT_DIR=${0:A:h:h}
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
+PROMPT_DIR="$PROJECT_DIR/prompts"
 
 cat > "$TMP_DIR/curl" <<'EOF'
 #!/bin/sh
@@ -38,7 +39,7 @@ printf '%s' "${writeout//%\{http_code\}/200}"
 EOF
 chmod +x "$TMP_DIR/curl"
 
-output=$(PATH="$TMP_DIR:$PATH" AI_COMPLETE_API_KEY="test-key" bash "$PROJECT_DIR/ai-suggest" --ask "why did grep fail")
+output=$(PATH="$TMP_DIR:$PATH" AI_COMPLETE_API_URL="https://example.com/v1/chat/completions" AI_COMPLETE_MODEL="test-model" AI_COMPLETE_API_KEY="test-key" bash "$PROJECT_DIR/ai-suggest.sh" --ask "why did grep fail")
 expected=$'Here is the answer.\n- keep this bullet\n\nUse grep -R foo .'
 
 [[ "$output" == "$expected" ]] || {
@@ -78,7 +79,7 @@ printf '%s' "${writeout//%\{http_code\}/401}"
 EOF
 chmod +x "$TMP_DIR/curl"
 
-error_output=$(PATH="$TMP_DIR:$PATH" AI_COMPLETE_API_KEY="test-key" bash "$PROJECT_DIR/ai-suggest" --ask "bash和zsh的区别？")
+error_output=$(PATH="$TMP_DIR:$PATH" AI_COMPLETE_API_URL="https://example.com/v1/chat/completions" AI_COMPLETE_MODEL="test-model" AI_COMPLETE_API_KEY="test-key" bash "$PROJECT_DIR/ai-suggest.sh" --ask "bash和zsh的区别？")
 error_expected='invalid_api_key'
 
 [[ "$error_output" == "$error_expected" ]] || {
@@ -113,7 +114,7 @@ printf '%s' "${writeout//%\{http_code\}/200}"
 EOF
 chmod +x "$TMP_DIR/curl"
 
-empty_output=$(PATH="$TMP_DIR:$PATH" AI_COMPLETE_API_KEY="test-key" bash "$PROJECT_DIR/ai-suggest" --ask "bash和zsh的区别？")
+empty_output=$(PATH="$TMP_DIR:$PATH" AI_COMPLETE_API_URL="https://example.com/v1/chat/completions" AI_COMPLETE_MODEL="test-model" AI_COMPLETE_API_KEY="test-key" bash "$PROJECT_DIR/ai-suggest.sh" --ask "bash和zsh的区别？")
 empty_expected='no response'
 
 [[ "$empty_output" == "$empty_expected" ]] || {
@@ -121,6 +122,20 @@ empty_expected='no response'
     print -u2 "$empty_expected"
     print -u2 "got:"
     print -u2 "$empty_output"
+    exit 1
+}
+
+prompt_missing_output=$(PATH="$TMP_DIR:$PATH" AI_COMPLETE_API_URL="https://example.com/v1/chat/completions" AI_COMPLETE_MODEL="test-model" AI_COMPLETE_API_KEY="test-key" AI_COMPLETE_PROMPT_DIR="$TMP_DIR/missing-prompts" bash "$PROJECT_DIR/ai-suggest.sh" --ask "why did grep fail")
+[[ "$prompt_missing_output" == *"Prompt file not found:"* ]] || {
+    print -u2 "expected missing prompt file error"
+    print -u2 "$prompt_missing_output"
+    exit 1
+}
+
+ask_prompt_template=$(<"$PROMPT_DIR/ask.prompt")
+[[ "$ask_prompt_template" == *'{{INPUT}}'* ]] || {
+    print -u2 "expected ask.prompt to contain {{INPUT}} placeholder"
+    print -u2 "$ask_prompt_template"
     exit 1
 }
 

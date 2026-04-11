@@ -32,8 +32,8 @@ TerminalTab 是一个轻量的 zsh 插件。
 TerminalTab 的工作流程很简单：
 
 1. 你在命令行里输入内容后按 `Ctrl+L`
-2. `ai-complete.zsh` 读取当前输入，并在后台调用 `ai-suggest`
-3. `ai-suggest` 请求大模型，让它返回“每行一条”的完整命令建议
+2. `ai-complete.zsh` 读取当前输入，并在后台调用 `ai-suggest.sh`
+3. `ai-suggest.sh` 请求大模型，让它返回“每行一条”的完整命令建议
 4. 返回结果会在本地再次清洗，过滤掉空行、编号、项目符号、代码块残留和重复项
 5. 清洗后的结果交给 zsh 插件渲染成可选择的建议列表
 6. 你可以用 `↑ / ↓` 切换，用 `Enter` 把选中的命令填回当前输入框
@@ -43,7 +43,7 @@ TerminalTab 的工作流程很简单：
 ## 文件说明
 
 - `ai-complete.zsh`：zsh 插件，负责键位绑定、菜单渲染、状态管理
-- `ai-suggest`：Bash 脚本，负责请求大模型并清洗输出
+- `ai-suggest.sh`：Bash 脚本，负责请求大模型并清洗输出
 
 ## 依赖
 
@@ -75,7 +75,16 @@ export AI_COMPLETE_MAX_ITEMS=5
 source /path/to/TerminalTab/ai-complete.zsh
 ```
 
+其中以下 3 个变量是必填项：
+- `AI_COMPLETE_API_URL`
+- `AI_COMPLETE_MODEL`
+- `AI_COMPLETE_API_KEY`
+
 `AI_COMPLETE_API_TYPE` 控制协议格式，默认 `openai`，使用 Claude 时设为 `claude`。
+
+提示词已拆分到独立文件中：
+- `prompts/suggest.prompt`
+- `prompts/ask.prompt`
 
 举例
 
@@ -153,7 +162,9 @@ touch -a filename
 
 当前会执行：
 - navigation buffer regression
+- ai config validation regression
 - ai-suggest cleanup regression
+- ai ask mode regression
 - ctrl+l binding regression
 - trigger rename regression
 
@@ -164,11 +175,12 @@ touch -a filename
 - `openai`（默认）：兼容 OpenAI、DeepSeek、通义千问等 Chat Completions 风格接口
 - `claude`：Anthropic Claude 官方 API
 
-OpenAI 兼容接口只需改 URL 和模型：
+无论哪种协议，都需要显式配置 URL、模型和 API key：
 
 ```bash
 export AI_COMPLETE_API_URL="https://your-api.example.com/v1/chat/completions"
 export AI_COMPLETE_MODEL="your-model"
+export AI_COMPLETE_API_KEY="your-key"
 ```
 
 ## 注意事项

@@ -20,6 +20,7 @@ run_test "terminal agnostic fallback regression" "$TEST_DIR/test_render_mode_ter
 run_test "cursor row fallback regression" "$TEST_DIR/test_render_mode_cursor_row.zsh"
 run_test "auto render space regression" "$TEST_DIR/test_render_mode_auto_space.zsh"
 run_test "inline render mode regression" "$TEST_DIR/test_render_mode_inline_terminal.zsh"
+run_test "ai config validation regression" "$TEST_DIR/test_ai_config_validation.zsh"
 run_test "ai-suggest cleanup regression" "$TEST_DIR/test_ai_suggest_cleanup.zsh"
 run_test "ai ask mode regression" "$TEST_DIR/test_ai_ask_mode.zsh"
 run_test "ctrl+l binding regression" "$TEST_DIR/test_ctrl_l_binding.zsh"
