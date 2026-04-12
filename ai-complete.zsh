@@ -29,20 +29,15 @@ _ai_script_dir() {
 _ai_setup() {
     local script_dir
     script_dir=$(_ai_script_dir)
-    local script_path
-    local -a command_scripts=(
-        "$script_dir/ai-command-request.sh"
-    )
 
     if [[ ":$PATH:" != *":$script_dir:"* ]]; then
         export PATH="$script_dir:$PATH"
     fi
 
-    for script_path in "${command_scripts[@]}"; do
-        if [[ ! -x "$script_path" && -f "$script_path" ]]; then
-            chmod +x "$script_path" 2>/dev/null || true
-        fi
-    done
+    local request_script="$script_dir/ai-command-request.sh"
+    if [[ ! -x "$request_script" && -f "$request_script" ]]; then
+        chmod +x "$request_script" 2>/dev/null || true
+    fi
 }
 
 _ai_is_official_autosuggestions_loaded() {
@@ -354,9 +349,9 @@ _ai_run_with_spinner() {
 }
 
 # ── Source core modules ───────────────────────────────────────
-_ai_source_dir=$(_ai_script_dir)
-source "$_ai_source_dir/ai-suggest.zsh"
-source "$_ai_source_dir/ai-generate.zsh"
+_AI_SOURCE_DIR=$(_ai_script_dir)
+source "$_AI_SOURCE_DIR/ai-suggest.zsh"
+source "$_AI_SOURCE_DIR/ai-generate.zsh"
 
 # ── Dispatch widgets ─────────────────────────────────────────
 _ai_history_prev() {
