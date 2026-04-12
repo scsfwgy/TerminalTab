@@ -32,9 +32,9 @@ TerminalTab 是一个轻量的 zsh 插件。
 TerminalTab 的工作流程很简单：
 
 1. 你在命令行里输入内容后按 `Ctrl+L`
-2. `ai-complete.zsh` 读取当前输入，并在后台调用 `ai-suggest.sh`
-3. `ai-suggest.sh` 请求大模型，让它返回“每行一条”的完整命令建议
-4. 返回结果会在本地再次清洗，过滤掉空行、编号、项目符号、代码块残留和重复项
+2. `ai-complete.zsh` 读取当前输入，并在后台调用 `ai-command-list.sh`
+3. `ai-command-list.sh` 把请求交给 `ai-command-request.sh`，让大模型返回“每行一条”的完整命令建议
+4. 返回结果会在共享请求层本地再次清洗，过滤掉空行、编号、项目符号、代码块残留和重复项
 5. 清洗后的结果交给 zsh 插件渲染成可选择的建议列表
 6. 你可以用 `↑ / ↓` 切换，用 `Enter` 把选中的命令填回当前输入框
 
@@ -42,8 +42,10 @@ TerminalTab 的工作流程很简单：
 
 ## 文件说明
 
-- `ai-complete.zsh`：zsh 插件，负责键位绑定、菜单渲染、状态管理
-- `ai-suggest.sh`：Bash 脚本，负责请求大模型并清洗输出
+- `ai-complete.zsh`：zsh 插件总入口，负责键位绑定、菜单渲染、状态管理
+- `ai-command-list.sh`：`Ctrl+L` 建议入口，返回逐行命令建议
+- `ai-command-generate.sh`：`Ctrl+G` 问答入口，返回纯文本回答
+- `ai-command-request.sh`：共享请求层，负责配置校验、提示词加载、API 请求与结果清洗
 
 ## 依赖
 

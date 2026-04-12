@@ -1,19 +1,17 @@
 #!/bin/bash
-# AI-powered command suggestion engine
-# Usage: ai-suggest.sh [--ask] "user typed text"
-# Output:
-#   suggest mode → newline-separated COMPLETE command suggestions
-#   ask mode     → plain assistant response
+# Shared AI request engine
+# Usage: ai-command-request.sh <list|generate> "user typed text"
 
 set -o pipefail
 
-MODE="suggest"
-if [[ "${1:-}" == "--ask" ]]; then
-    MODE="ask"
-    shift
-fi
-
+MODE="${1:-}"
+shift || true
 INPUT="$*"
+
+if [[ "$MODE" != "list" && "$MODE" != "generate" ]]; then
+    printf 'Invalid mode: %s\n' "$MODE"
+    exit 0
+fi
 
 if [[ -z "$INPUT" ]]; then
     exit 0
@@ -21,15 +19,6 @@ fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROMPT_DIR="${AI_COMPLETE_PROMPT_DIR:-$SCRIPT_DIR/prompts}"
-
-# ── Config (set in .zshrc / .bashrc) ──────────────────────────
-# AI_COMPLETE_API_TYPE    - API protocol: "openai" or "claude" (default: openai)
-# AI_COMPLETE_API_URL     - API endpoint (required)
-# AI_COMPLETE_API_KEY     - Your API key (required)
-# AI_COMPLETE_MODEL       - Model name (required)
-# AI_COMPLETE_TIMEOUT     - Timeout in seconds (default: 15)
-# AI_COMPLETE_PROMPT_DIR  - Prompt directory (optional, default: prompts next to ai-suggest.sh)
-# ──────────────────────────────────────────────────────────────
 
 API_TYPE="${AI_COMPLETE_API_TYPE:-openai}"
 API_URL="${AI_COMPLETE_API_URL:-}"
@@ -69,7 +58,7 @@ print_config_error() {
 load_prompt() {
     local prompt_name prompt_path prompt_content sanitized_input
 
-    if [[ "$MODE" == "ask" ]]; then
+    if [[ "$MODE" == "generate" ]]; then
         prompt_name="ask.prompt"
     else
         prompt_name="suggest.prompt"
@@ -89,9 +78,6 @@ load_prompt() {
     sanitized_input=${INPUT//\{\{INPUT\}\}/}
     PROMPT=${prompt_content//\{\{INPUT\}\}/$sanitized_input}
 }
-
-print_config_error
-load_prompt || exit 0
 
 extract_api_error() {
     local response="$1"
@@ -126,10 +112,41 @@ extract_response_content() {
     printf '%s' "$content"
 }
 
+clean_suggestions() {
+    local content="$1"
+    local output
+
+    output=$(printf '%s' "$content" | awk '
+        BEGIN { count = 0 }
+        {
+            gsub(/\r/, "")
+            sub(/^[[:space:]]+/, "")
+            sub(/[[:space:]]+$/, "")
+            if ($0 == "" || $0 ~ /^```/) next
+            sub(/^[0-9]+[.)][[:space:]]+/, "")
+            sub(/^[-*•][[:space:]]+/, "")
+            sub(/^[[:space:]]+/, "")
+            sub(/[[:space:]]+$/, "")
+            if ($0 == "" || seen[$0]++) next
+            print
+            count++
+            if (count >= 8) exit
+        }
+    ')
+
+    if [[ -n "$output" ]]; then
+        printf '%s\n' "$output"
+    else
+        printf '%s\n' "$content"
+    fi
+}
+
+print_config_error
+load_prompt || exit 0
+
 response_file=$(mktemp)
 trap 'rm -f "$response_file"' EXIT
 
-# Call LLM API
 if [[ "$API_TYPE" == "claude" ]]; then
     http_code=$(curl -sS --max-time "$TIMEOUT" -o "$response_file" -w '%{http_code}' "$API_URL" \
         -H "Content-Type: application/json" \
@@ -168,13 +185,11 @@ response=$(cat "$response_file" 2>/dev/null)
 content=$(extract_response_content "$response")
 api_error=$(extract_api_error "$response")
 
-# Prefer explicit model/API errors when present
 if [[ -n "$api_error" ]]; then
     printf '%s\n' "$api_error"
     exit 0
 fi
 
-# If HTTP failed but body had no parseable message, still show the status directly
 if [[ "$http_code" != "000" && "$http_code" -ge 400 ]] 2>/dev/null; then
     if [[ -n "$response" ]]; then
         printf '%s\n' "$response"
@@ -184,42 +199,16 @@ if [[ "$http_code" != "000" && "$http_code" -ge 400 ]] 2>/dev/null; then
     exit 0
 fi
 
-# If parsed content is empty, fall back to raw response
 [[ -n "$content" ]] || content="$response"
 
-# If still empty, return fixed message
 if [[ -z "$content" ]]; then
     printf 'no response\n'
     exit 0
 fi
 
-if [[ "$MODE" == "ask" ]]; then
+if [[ "$MODE" == "generate" ]]; then
     printf '%s\n' "$content"
     exit 0
 fi
 
-# Extract and clean suggestions
-output=$(printf '%s' "$content" | awk '
-    BEGIN { count = 0 }
-    {
-        gsub(/\r/, "")
-        sub(/^[[:space:]]+/, "")
-        sub(/[[:space:]]+$/, "")
-        if ($0 == "" || $0 ~ /^```/) next
-        sub(/^[0-9]+[.)][[:space:]]+/, "")
-        sub(/^[-*•][[:space:]]+/, "")
-        sub(/^[[:space:]]+/, "")
-        sub(/[[:space:]]+$/, "")
-        if ($0 == "" || seen[$0]++) next
-        print
-        count++
-        if (count >= 8) exit
-    }
-')
-
-# If awk cleaned to nothing, show raw content as fallback
-if [[ -n "$output" ]]; then
-    printf '%s\n' "$output"
-else
-    printf '%s\n' "$content"
-fi
+clean_suggestions "$content"

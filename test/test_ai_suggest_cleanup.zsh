@@ -39,7 +39,7 @@ printf '%s' "${writeout//%\{http_code\}/200}"
 EOF
 chmod +x "$TMP_DIR/curl"
 
-output=$(PATH="$TMP_DIR:$PATH" AI_COMPLETE_API_URL="https://example.com/v1/chat/completions" AI_COMPLETE_MODEL="test-model" AI_COMPLETE_API_KEY="test-key" bash "$PROJECT_DIR/ai-suggest.sh" "ls")
+output=$(PATH="$TMP_DIR:$PATH" AI_COMPLETE_API_URL="https://example.com/v1/chat/completions" AI_COMPLETE_MODEL="test-model" AI_COMPLETE_API_KEY="test-key" bash "$PROJECT_DIR/ai-command-list.sh" "ls")
 expected=$'ls -la\nls -lh\nls -lt\nls -lS\nls -lah'
 
 [[ "$output" == "$expected" ]] || {

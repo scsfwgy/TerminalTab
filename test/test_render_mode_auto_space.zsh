@@ -6,6 +6,7 @@ PROJECT_DIR=${TEST_DIR:h}
 
 bindkey() { :; }
 zle() { :; }
+_zsh_autosuggest_start() { :; }
 
 source "$PROJECT_DIR/ai-complete.zsh" >/dev/null
 

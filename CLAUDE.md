@@ -6,16 +6,19 @@
 
 TerminalTab 是一个 zsh 插件，按 Ctrl+L 键调用大模型 API 提供命令建议，按 Ctrl+G 向 AI 提问。支持纠正拼写错误、补全部分输入、或为已有命令推荐有用的参数组合。
 
-仅两个文件，除 `curl` + `jq` 外零依赖：
-- `ai-suggest.sh` — Bash 脚本，调用 LLM API，返回换行分隔的完整命令建议
-- `ai-complete.zsh` — ZLE（Zsh 行编辑器）插件，拦截 Ctrl+L/Ctrl+G/上/下/回车 键
+核心分为四层：
+- `ai-complete.zsh` — ZLE（Zsh 行编辑器）总入口，负责快捷键、loading、菜单渲染与状态管理
+- `ai-command-list.sh` — Ctrl+L 建议入口
+- `ai-command-generate.sh` — Ctrl+G 问答入口
+- `ai-command-request.sh` — 共享 LLM 请求层，负责配置校验、prompt 加载、API 请求、响应提取与建议清洗
 
 ## 架构
 
 ```
 用户按 Ctrl+L (l = list)
   → ai-complete.zsh (_ai_trigger widget)
-    → ai-suggest.sh（通过 &! 后台运行）
+    → ai-command-list.sh（通过 &! 后台运行）
+    → ai-command-request.sh（共享请求层）
     → 通过 POSTDISPLAY 在输入内容后显示单行 loading 动画
     → _ai_show: zle redisplay → 清理旧列表 → DEC 保存光标 → printf 边框列表 → DEC 恢复光标
   → 用户按 上/下
@@ -72,8 +75,8 @@ source ~/path/to/TerminalTab/ai-complete.zsh
 - ZLE widget 的 `for` 循环内使用 `local var` 会导致赋值被回显到终端（显示为 `item='value'` 文本）。所有变量需在循环外声明，循环内赋值。
 
 ### 6. 建议结果清洗必须在源头完成
-- `ai-suggest.sh` 返回值不能直接信任。模型可能返回编号列表、项目符号、代码块围栏、空行、重复命令。
-- 应在 `ai-suggest.sh` 内统一做清洗：trim、去编号/项目符号、去代码块残留、去重、保序、限制最大条数。
+- `ai-command-request.sh` 的 list 模式返回值不能直接信任。模型可能返回编号列表、项目符号、代码块围栏、空行、重复命令。
+- 应在共享请求层内统一做清洗：trim、去编号/项目符号、去代码块残留、去重、保序、限制最大条数。
 - 前端菜单应尽量只处理“已经清洗好的完整命令列表”，不要把脏数据留给 `ai-complete.zsh` 再兜底。
 
 ### 7. 菜单关闭必须统一重置状态

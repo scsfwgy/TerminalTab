@@ -20,13 +20,22 @@
 # ── Setup ─────────────────────────────────────────────────────
 _ai_setup() {
     local script_dir="${0:A:h}"
-    local suggest_script="$script_dir/ai-suggest.sh"
+    local script_path
+    local -a command_scripts=(
+        "$script_dir/ai-command-list.sh"
+        "$script_dir/ai-command-generate.sh"
+        "$script_dir/ai-command-request.sh"
+    )
+
     if [[ ":$PATH:" != *":$script_dir:"* ]]; then
         export PATH="$script_dir:$PATH"
     fi
-    if [[ ! -x "$suggest_script" && -f "$suggest_script" ]]; then
-        chmod +x "$suggest_script" 2>/dev/null || true
-    fi
+
+    for script_path in "${command_scripts[@]}"; do
+        if [[ ! -x "$script_path" && -f "$script_path" ]]; then
+            chmod +x "$script_path" 2>/dev/null || true
+        fi
+    done
 }
 
 _ai_is_official_autosuggestions_loaded() {
@@ -531,7 +540,7 @@ _ai_trigger() {
     _AI_INDEX=0
     _AI_SCROLL=0
 
-    _ai_run_with_spinner ai-suggest.sh "$input"
+    _ai_run_with_spinner ai-command-list.sh "$input"
     local raw="$_AI_LAST_OUTPUT"
 
     [[ -z "$raw" ]] && { _ai_reset_menu; zle expand-or-complete; return }
@@ -561,7 +570,7 @@ _ai_ask() {
         _ai_reset_menu
     fi
 
-    _ai_run_with_spinner ai-suggest.sh --ask "$input"
+    _ai_run_with_spinner ai-command-generate.sh "$input"
     local answer="$_AI_LAST_OUTPUT"
 
     _ai_show_answer "${answer:-no response}"

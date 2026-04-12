@@ -15,6 +15,7 @@ zle() {
             ;;
     esac
 }
+_zsh_autosuggest_start() { :; }
 
 source "$PROJECT_DIR/ai-complete.zsh" >/dev/null
 
