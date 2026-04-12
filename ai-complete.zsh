@@ -194,8 +194,7 @@ _ai_require_official_autosuggestions() {
 }
 
 _ai_loading_frames() {
-    _AI_LOADING_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-    _AI_LOADING_INTERVAL=0.2
+    :
 }
 
 _ai_setup_render_mode() {
@@ -552,18 +551,11 @@ _ai_run_with_spinner() {
     { "$@" > "$tmpf" } 2>/dev/null &!
     local bg_pid=$!
 
-    local frames=(${_AI_LOADING_FRAMES[@]})
-    local frame_count=${#frames}
-    local si=0
+    POSTDISPLAY=" AI generating..."
+    zle redisplay
 
     while kill -0 "$bg_pid" 2>/dev/null; do
-        local next_postdisplay=" ${frames[$(( si % frame_count + 1 ))]}"
-        if [[ "$POSTDISPLAY" != "$next_postdisplay" ]]; then
-            POSTDISPLAY="$next_postdisplay"
-            zle redisplay
-        fi
-        si=$(( si + 1 ))
-        sleep "${_AI_LOADING_INTERVAL}"
+        sleep 0.2
     done
 
     _AI_LAST_OUTPUT=$(cat "$tmpf" 2>/dev/null)

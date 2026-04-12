@@ -28,7 +28,7 @@ TerminalTab 是一个 zsh 插件，提供四个核心快捷键：
   → ai-complete.zsh (_ai_trigger widget)
     → ai-command-list.sh（通过 &! 后台运行）
     → ai-command-request.sh（共享请求层）
-    → 通过 POSTDISPLAY 在输入内容后显示单行 loading 动画
+    → 通过 POSTDISPLAY 在输入内容后显示 "AI generating..." 提示
     → _ai_show: zle redisplay → 清理旧列表 → DEC 保存光标 → printf 边框列表 → DEC 恢复光标
   → 用户按 上/下
     → _ai_show 重新渲染列表，更新选中项到 LBUFFER
@@ -90,8 +90,9 @@ source ~/path/to/TerminalTab/ai-complete.zsh
 - 导航（上/下）时旧列表必须先清掉再重绘；关闭菜单时也必须走同一套清理路径。
 - 如果已经记录了菜单高度（如 `_AI_LIST_LINES`），清理时应按实际行数逐行清除，而不是直接 `\e[J` 清到屏幕底部，避免误清终端其它内容。
 
-### 2. Loading 动画与列表显示要分层处理
-- 单行 loading 动画适合用 `POSTDISPLAY`，这样可以直接显示在用户当前输入内容后面，比如 `ls ⠧`。
+### 2. Loading 提示与列表显示要分层处理
+- Loading 提示适合用 `POSTDISPLAY`，直接显示在用户当前输入内容后面，如 `ls AI generating...`。
+- **不要**用 Braille 动画帧做 spinner——不同终端对 Braille 字符的渲染宽度不一致，容易导致抖动和光标错位。改用静态文字。
 - 多行边框列表**不能**用 `POSTDISPLAY`，因为它只支持单行；多行列表仍需使用 `printf` + 光标保存/恢复来绘制。
 - `POSTDISPLAY` 使用完后必须及时清空，否则会残留在命令行尾部。
 
