@@ -1,24 +1,26 @@
 # TerminalTab
 
-TerminalTab 是一个轻量的 zsh 插件。
+TerminalTab 是一个轻量的 zsh 插件，提供 AI 命令建议和历史命令增强两大核心能力。
 
-它会在你输入命令后，通过 `Ctrl+L` 调用大模型 API，返回一组选好的完整命令建议，适合用来：
-- 修正拼写错误
-- 补全半截命令
-- 为已有命令推荐常用参数组合
+## 四个核心快捷键
+
+| 快捷键 | 功能 | 说明 |
+|--------|------|------|
+| `Ctrl+L` | AI 建议列表 | 调用大模型，返回一组完整的命令建议（l = list） |
+| `Ctrl+G` | AI 问答 | 向 AI 提问，返回纯文本回答（g = generate） |
+| `Ctrl+U` | 上一个历史候选 | 基于当前输入前缀，在历史命令中循环切换（u = up） |
+| `Ctrl+N` | 下一个历史候选 | 基于当前输入前缀，在历史命令中循环切换（n = next） |
+
+四个快捷键均可通过环境变量自定义。
 
 ## 特性
 
-- `Ctrl+L` 触发 AI 建议（l = list）
-- `Ctrl+G` 向 AI 提问（g = generate）
-- `Ctrl+U / Ctrl+N` 循环切换历史 inline suggestion
-- 垂直边框菜单展示结果
-- `↑ / ↓` 切换高亮
-- `Enter` 接受当前建议
-- `Ctrl+C` 取消菜单并恢复原始输入
+- AI 建议列表：垂直边框菜单展示，`↑ / ↓` 切换高亮，`Enter` 接受，`Ctrl+C` 取消
+- AI 问答：直接在终端下方显示回答
+- 历史 inline suggestion：灰色文字显示在输入内容后，通过 `Ctrl+U / Ctrl+N` 循环切换多条历史候选
 - 加载中动画直接显示在当前输入后面
 - 建议结果会自动清洗：去重、去编号、去项目符号、去代码块残留
-- 仅依赖 `curl` 和 `jq`
+- 仅依赖 `curl`、`jq` 和 `zsh-autosuggestions`
 
 ## 示例
 
@@ -30,22 +32,33 @@ TerminalTab 是一个轻量的 zsh 插件。
 
 ## 原理
 
-TerminalTab 的工作流程很简单：
+### AI 建议（Ctrl+L）
 
 1. 你在命令行里输入内容后按 `Ctrl+L`
 2. `ai-complete.zsh` 读取当前输入，并在后台调用 `ai-command-list.sh`
-3. `ai-command-list.sh` 把请求交给 `ai-command-request.sh`，让大模型返回“每行一条”的完整命令建议
+3. `ai-command-list.sh` 把请求交给 `ai-command-request.sh`，让大模型返回"每行一条"的完整命令建议
 4. 返回结果会在共享请求层本地再次清洗，过滤掉空行、编号、项目符号、代码块残留和重复项
 5. 清洗后的结果交给 zsh 插件渲染成可选择的建议列表
 6. 你可以用 `↑ / ↓` 切换，用 `Enter` 把选中的命令填回当前输入框
 
-也就是说：这个项目不是直接替你执行命令，而是把大模型输出整理成更适合直接使用的命令候选，再交给你选择。
+### AI 问答（Ctrl+G）
 
-此外，TerminalTab 也会复用官方 `zsh-users/zsh-autosuggestions` 做历史增强：当你输入前缀后，可以通过灰色 inline suggestion 形式在多个历史命令之间循环切换，而不进入 `Ctrl+L` 的多行 AI 菜单。
+1. 输入问题后按 `Ctrl+G`
+2. 后台调用 `ai-command-generate.sh`，获取纯文本回答
+3. 回答直接显示在终端下方
+
+### 历史命令增强（Ctrl+U / Ctrl+N）
+
+TerminalTab 复用官方 `zsh-users/zsh-autosuggestions` 做历史增强：当你输入前缀后，可以通过灰色 inline suggestion 形式在多个历史命令之间循环切换，而不进入 `Ctrl+L` 的多行 AI 菜单。
+
+- 输入前缀（如 `git checkout `）后按 `Ctrl+N`，会显示最近一条匹配的历史命令的未输入部分
+- 继续按 `Ctrl+N` / `Ctrl+U` 可循环切换其他匹配的历史候选
+- 按 `Enter` 接受当前历史候选，填入完整命令
+- 如果没有匹配的历史候选，`Ctrl+U` 保持原生 `kill-line` 行为，`Ctrl+N` 保持原生 `down-line-or-history` 行为
 
 ## 文件说明
 
-- `ai-complete.zsh`：zsh 插件总入口，负责键位绑定、菜单渲染、状态管理
+- `ai-complete.zsh`：zsh 插件总入口，负责快捷键注册与校验、AI 菜单渲染、状态管理
 - `zsh-autosuggestions-enhance.sh`：基于官方 `zsh-users/zsh-autosuggestions` 的历史多候选 inline cycling 增强层
 - `ai-command-list.sh`：`Ctrl+L` 建议入口，返回逐行命令建议
 - `ai-command-generate.sh`：`Ctrl+G` 问答入口，返回纯文本回答
@@ -61,7 +74,7 @@ brew install jq curl
 
 如果系统已自带 `curl`，通常只需要安装 `jq`。
 
-此外，TerminalTab 现在依赖官方 `zsh-users/zsh-autosuggestions`。
+此外，TerminalTab 依赖官方 `zsh-users/zsh-autosuggestions`。
 
 推荐方式是直接让 TerminalTab 在首次加载时自动下载到当前仓库的 `vendor/zsh-autosuggestions`；该目录适合加入 `.gitignore`，避免产生 git 噪音。
 
@@ -138,13 +151,14 @@ source /path/to/TerminalTab/ai-complete.zsh
 - `AI_COMPLETE_HISTORY_PREV_BINDKEY`：切换到上一个历史 inline suggestion，默认 `'^U'`（即 `Ctrl+U`）
 - `AI_COMPLETE_HISTORY_NEXT_BINDKEY`：切换到下一个历史 inline suggestion，默认 `'^N'`（即 `Ctrl+N`）
 
-快捷键值必须使用 zsh `bindkey` 原生语法，例如 `'^T'`、`'^Y'`。如果用户显式设置了非法值（例如空值、裸 `\e`、与方向键 / Enter / Ctrl+C 冲突、或两个快捷键重复），插件会直接报错并停止加载，而不会回退到默认快捷键。
+快捷键值必须使用 zsh `bindkey` 原生语法，例如 `'^T'`、`'^Y'`。如果用户显式设置了非法值（例如空值、裸 `\e`、与方向键 / Enter / Ctrl+C 冲突、或快捷键之间重复），插件会直接报错并停止加载，而不会回退到默认快捷键。
 
 `AI_COMPLETE_API_TYPE` 控制协议格式，默认 `openai`，使用 Claude 时设为 `claude`。
 
-举例
+举例：
 
-```deepseek 举例
+```bash
+# DeepSeek 举例
 export AI_COMPLETE_API_KEY="sk-ebfbeed****854700044d"
 export AI_COMPLETE_API_URL="https://api.deepseek.com/v1/chat/completions"
 export AI_COMPLETE_MODEL="deepseek-chat"
@@ -152,7 +166,8 @@ export AI_COMPLETE_MODEL="deepseek-chat"
 source ~/TerminalTab/ai-complete.zsh
 ```
 
-```Claude 举例
+```bash
+# Claude 举例
 export AI_COMPLETE_API_TYPE="claude"
 export AI_COMPLETE_API_KEY="sk-ant-..."
 export AI_COMPLETE_API_URL="https://api.anthropic.com/v1/messages"
@@ -172,8 +187,8 @@ source ~/.zshrc
 默认快捷键：
 - `Ctrl+L`：请求 / 刷新 AI 建议（l = list）
 - `Ctrl+G`：向 AI 提问（g = generate）
-- `Ctrl+U`：切换到上一个历史 inline suggestion
-- `Ctrl+N`：切换到下一个历史 inline suggestion
+- `Ctrl+U`：切换到上一个历史 inline suggestion（u = up）
+- `Ctrl+N`：切换到下一个历史 inline suggestion（n = next）
 - `↑ / ↓`：切换 AI 菜单高亮项
 - `Enter`：接受当前高亮建议或当前历史候选
 - `Ctrl+C`：取消菜单并恢复输入

@@ -1,2 +1,4 @@
 /.idea/
 /vendor/zsh-autosuggestions/
+__pycache__/
+*.pyc
